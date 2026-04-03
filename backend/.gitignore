@@ -1,6 +1,21 @@
-node_modules/
+# Node
 frontend/node_modules/
-dist/
-frontend/dist/
+
+# Python
+backend/__pycache__/
+*.pyc
+
+# Environment
 .env
-__pycache__/
+
+# Build files
+frontend/dist/
+frontend/.vite/
+build/
+.build/
+
+# CatBoost temp files
+backend/catboost_info/
+
+# Logs
+npm-debug.log*
