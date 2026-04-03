@@ -1,26 +1,26 @@
-# 🤖 MATERNAI – AI Maternal Risk Prediction System
+#  MATERNAI – AI Maternal Risk Prediction System
 
-🚀 An intelligent healthcare system that predicts maternal risk using AI and provides early warnings for safer pregnancies.
-
----
-
-## 🌐 Live Demo
-
+ An intelligent healthcare system that predicts maternal risk using AI and provides early warnings for safer pregnancies.
 
 ---
 
-## 🌟 Features
+##  Live Demo
 
-* 🧠 AI-based maternal risk prediction (CatBoost)
-* 📄 OCR system to extract data from medical reports
-* 📊 Instant risk classification (Low / Medium / High)
-* 💡 Smart health insights & recommendations
-* 🖥️ Modern responsive UI (React + Tailwind)
-* ⚡ Fast and user-friendly workflow
 
 ---
 
-## 🛠️ Tech Stack
+##  Features
+
+*  AI-based maternal risk prediction (CatBoost)
+* OCR system to extract data from medical reports
+*  Instant risk classification (Low / Medium / High)
+*  Smart health insights & recommendations
+*  Modern responsive UI (React + Tailwind)
+*  Fast and user-friendly workflow
+
+---
+
+##  Tech Stack
 
 * **Frontend:** React + Vite + Tailwind CSS
 * **Backend:** Python (Flask)
@@ -29,7 +29,7 @@
 
 ---
 
-## 📂 Project Structure
+##  Project Structure
 
 ```bash
 MATERNAI/
@@ -55,7 +55,7 @@ MATERNAI/
 
 ---
 
-## ⚙️ Installation & Setup
+##  Installation & Setup
 
 ### 🔹 1. Clone Repository
 
@@ -86,7 +86,7 @@ python app.py
 
 ---
 
-## 🧑‍⚕️ How to Use
+##  How to Use
 
 1. Open the web app in browser
 2. Enter patient details:
@@ -105,7 +105,7 @@ python app.py
 
 ---
 
-## 🎬 Demonstration Steps
+##  Demonstration Steps
 
 ### 🔹 Step 1: Introduction
 
