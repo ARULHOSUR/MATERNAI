@@ -9,6 +9,8 @@ import Particles from './components/Particles'
 import ChatAssistant from './components/ChatAssistant'
 import { MapPin, Phone, X, Cross } from 'lucide-react'
 
+const API_URL = "https://maternai-production.up.railway.app";
+
 const indianHospitals = [
   { name: 'Government Mohan Kumaramangalam Medical College', distance: '2.3 km', address: 'Steel Road, Salem, Tamil Nadu', phone: '+91 427 231 500', available: true },
   { name: 'Vijay Marie Hospital', distance: '4.1 km', address: 'Cherry Road, Near Clock Tower, Salem', phone: '+91 427 231 200', available: true },
@@ -24,6 +26,35 @@ function App() {
   const [showHospitals, setShowHospitals] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
 
+  const handlePredict = async () => {
+  const response = await fetch(`${API_URL}/predict`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      age: 30,
+      bp: 140,
+      glucose: 120
+    })
+  });
+
+  const data = await response.json();
+  console.log(data);
+};
+return (
+    <div>
+      <h1>MATERNAI</h1>
+
+      <button onClick={handlePredict}>
+        Test Prediction
+      </button>
+
+    </div>
+  );
+}
+export default App;
+
   const renderPage = () => {
     switch (activePage) {
       case 'dashboard':
@@ -36,6 +67,7 @@ function App() {
         return <Alerts />
       default:
         return <Dashboard setActivePage={setActivePage} />
+        
     }
   }
 
