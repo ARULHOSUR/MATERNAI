@@ -18,7 +18,7 @@ CORS(app)
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), 'model.pkl')
+MODEL_PATH = os.path.join(os.path.dirname(__file__), 'backend', 'model.pkl')
 explainer = None
 model = None
 
