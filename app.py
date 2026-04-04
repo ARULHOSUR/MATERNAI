@@ -5,6 +5,7 @@ import pandas as pd
 import pickle
 import os
 import shap
+from sklearn.ensemble import RandomForestClassifier
 from werkzeug.utils import secure_filename
 import cv2
 from PIL import Image
@@ -241,70 +242,112 @@ def predict():
             'heart_rate': heart_rate
         }
         
-        risk_score = 0
-        risk_factors = []
-        
-        if systolic_bp >= 160:
-            risk_score += 30
-            risk_factors.append({'feature': 'systolic_bp', 'label': 'Systolic BP', 'impact': 0.30, 'explanation': 'Very high blood pressure (160+) indicates severe risk'})
-        elif systolic_bp >= 140:
-            risk_score += 20
-            risk_factors.append({'feature': 'systolic_bp', 'label': 'Systolic BP', 'impact': 0.20, 'explanation': 'High blood pressure (140+) indicates elevated risk'})
-        elif systolic_bp >= 130:
-            risk_score += 10
+        try:
+            df = load_uci_dataset()
             
-        if diastolic_bp >= 110:
-            risk_score += 25
-            risk_factors.append({'feature': 'diastolic_bp', 'label': 'Diastolic BP', 'impact': 0.25, 'explanation': 'Very high diastolic pressure indicates severe risk'})
-        elif diastolic_bp >= 100:
-            risk_score += 15
-            risk_factors.append({'feature': 'diastolic_bp', 'label': 'Diastolic BP', 'impact': 0.15, 'explanation': 'High diastolic pressure indicates elevated risk'})
+            if df is not None:
+                risk_mapping = {'low risk': 0, 'mid risk': 1, 'high risk': 2}
+                y = df['risklevel'].map(risk_mapping)
+                X = df.drop('risklevel', axis=1)
+                
+                model = RandomForestClassifier(
+                    n_estimators=150,
+                    max_depth=12,
+                    min_samples_split=5,
+                    min_samples_leaf=2,
+                    random_state=42,
+                    n_jobs=-1
+                )
+                model.fit(X, y)
+                
+                input_df = pd.DataFrame([features])
+                prediction = model.predict(input_df)[0]
+                probabilities = model.predict_proba(input_df)[0]
+                
+                risk_labels = ['Low Risk', 'Medium Risk', 'High Risk']
+                risk_level = risk_labels[prediction]
+                confidence = float(probabilities[prediction])
+                
+                main_factors = []
+                try:
+                    explainer = shap.TreeExplainer(model)
+                    shap_values = explainer.shap_values(input_df)
+                    shap_arr = np.array(shap_values)
+                    
+                    if len(shap_arr.shape) == 3:
+                        shap_value = shap_arr[0, :, prediction]
+                    elif len(shap_arr.shape) == 2:
+                        shap_value = shap_arr[0]
+                    else:
+                        shap_value = shap_arr
+                    shap_value = np.array(shap_value).flatten()
+                    
+                    feature_imp = list(zip(FEATURE_NAMES, shap_value))
+                    feature_imp.sort(key=lambda x: abs(x[1]), reverse=True)
+                    
+                    for feat, val in feature_imp[:3]:
+                        main_factors.append({
+                            'feature': feat,
+                            'label': FEATURE_LABELS[feat],
+                            'impact': float(abs(val)),
+                            'explanation': RISK_EXPLANATIONS[feat]
+                        })
+                except Exception as e:
+                    print(f"SHAP error: {e}")
+                    main_factors = [
+                        {'feature': 'systolic_bp', 'label': 'Systolic BP', 'impact': 0.2, 'explanation': 'Blood pressure is key risk factor'},
+                        {'feature': 'blood_sugar', 'label': 'Blood Sugar', 'impact': 0.15, 'explanation': 'Blood sugar affects pregnancy outcomes'}
+                    ]
+            else:
+                raise Exception("Could not load UCI dataset")
+        except Exception as e:
+            print(f"ML error: {e}")
+            risk_score = 0
+            risk_factors = []
             
-        if blood_sugar >= 200:
-            risk_score += 25
-            risk_factors.append({'feature': 'blood_sugar', 'label': 'Blood Sugar', 'impact': 0.25, 'explanation': 'Very high blood sugar (200+) indicates severe gestational diabetes risk'})
-        elif blood_sugar >= 140:
-            risk_score += 15
-            risk_factors.append({'feature': 'blood_sugar', 'label': 'Blood Sugar', 'impact': 0.15, 'explanation': 'Elevated blood sugar (140+) indicates gestational diabetes risk'})
-        elif blood_sugar >= 100:
-            risk_score += 5
+            if systolic_bp >= 160:
+                risk_score += 30
+                risk_factors.append({'feature': 'systolic_bp', 'label': 'Systolic BP', 'impact': 0.30, 'explanation': 'Very high blood pressure'})
+            elif systolic_bp >= 140:
+                risk_score += 20
+                risk_factors.append({'feature': 'systolic_bp', 'label': 'Systolic BP', 'impact': 0.20, 'explanation': 'High blood pressure'})
+                
+            if diastolic_bp >= 110:
+                risk_score += 25
+            elif diastolic_bp >= 100:
+                risk_score += 15
+                
+            if blood_sugar >= 200:
+                risk_score += 25
+            elif blood_sugar >= 140:
+                risk_score += 15
+                
+            if age >= 40:
+                risk_score += 15
+            elif age >= 35:
+                risk_score += 10
+                
+            if risk_score >= 50:
+                risk_level = 'High Risk'
+                confidence = 0.85
+                probabilities = [0.05, 0.15, 0.80]
+            elif risk_score >= 25:
+                risk_level = 'Medium Risk'
+                confidence = 0.75
+                probabilities = [0.15, 0.70, 0.15]
+            else:
+                risk_level = 'Low Risk'
+                confidence = 0.85
+                probabilities = [0.80, 0.15, 0.05]
             
-        if age >= 40:
-            risk_score += 15
-            risk_factors.append({'feature': 'age', 'label': 'Age', 'impact': 0.15, 'explanation': 'Advanced maternal age (40+) increases pregnancy risks'})
-        elif age >= 35:
-            risk_score += 10
-            
-        if body_temp >= 102:
-            risk_score += 20
-            risk_factors.append({'feature': 'body_temp', 'label': 'Body Temperature', 'impact': 0.20, 'explanation': 'High fever (102+) may indicate serious infection'})
-        elif body_temp >= 100:
-            risk_score += 10
-            
-        if heart_rate >= 120:
-            risk_score += 10
-        elif heart_rate < 60:
-            risk_score += 5
-            
-        if risk_score >= 50:
-            risk_level = 'High Risk'
-            confidence = min(0.95, risk_score / 100)
-            probabilities = [0.05, 0.15, 0.80]
-        elif risk_score >= 25:
-            risk_level = 'Medium Risk'
-            confidence = min(0.90, risk_score / 50)
-            probabilities = [0.15, 0.70, 0.15]
-        else:
-            risk_level = 'Low Risk'
-            confidence = min(0.95, 1 - (risk_score / 50))
-            probabilities = [0.80, 0.15, 0.05]
+            main_factors = risk_factors[:3]
         
         recommendation = "Continue regular prenatal care. Maintain healthy diet and exercise."
         
         if risk_level == 'High Risk':
-            recommendation = "IMMEDIATE ACTION REQUIRED: Please contact your healthcare provider immediately. Your results indicate high risk factors. Consider visiting an emergency facility if experiencing severe symptoms."
+            recommendation = "IMMEDIATE ACTION REQUIRED: Please contact your healthcare provider immediately. Your results indicate high risk factors."
         elif risk_level == 'Medium Risk':
-            recommendation = "Increase monitoring frequency. Consider additional tests as advised by your doctor. Watch for warning signs like severe headache, vision changes, or swelling."
+            recommendation = "Increase monitoring frequency. Consider additional tests as advised by your doctor."
         
         return jsonify({
             'risk': risk_level,
@@ -312,7 +355,7 @@ def predict():
             'probability_low': probabilities[0],
             'probability_medium': probabilities[1],
             'probability_high': probabilities[2],
-            'main_factors': risk_factors[:3],
+            'main_factors': main_factors,
             'recommendation': recommendation,
             'patient_data': features
         })
