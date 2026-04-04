@@ -7,7 +7,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'https://maternai-production.up.railway.app',
+        target: 'https://maternai-production.up.railway.app/api',
         changeOrigin: true,
         secure: false
       }

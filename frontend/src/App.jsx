@@ -26,35 +26,6 @@ function App() {
   const [showHospitals, setShowHospitals] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
 
-  const handlePredict = async () => {
-  const response = await fetch(`${API_URL}/predict`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      age: 30,
-      bp: 140,
-      glucose: 120
-    })
-  });
-
-  const data = await response.json();
-  console.log(data);
-};
-return (
-    <div>
-      <h1>MATERNAI</h1>
-
-      <button onClick={handlePredict}>
-        Test Prediction
-      </button>
-
-    </div>
-  );
-}
-export default App;
-
   const renderPage = () => {
     switch (activePage) {
       case 'dashboard':
