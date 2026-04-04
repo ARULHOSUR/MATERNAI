@@ -60,16 +60,10 @@ export default function ChatAssistant({ isOpen: externalIsOpen, onClose }) {
       const data = await response.json()
       
       if (data.error) {
-        const fallbackResponse = await fetch(`${API_URL}/api/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: input })
-        })
-        const fallbackData = await fallbackResponse.json()
         setMessages(prev => [...prev, { 
           id: Date.now() + 1, 
           type: 'bot', 
-          text: fallbackData.response 
+          text: 'I can help you with maternal health questions about blood pressure, blood sugar, risk levels, pregnancy symptoms, and more! Just type your question below.' 
         }])
       } else {
         setMessages(prev => [...prev, { 
@@ -79,25 +73,11 @@ export default function ChatAssistant({ isOpen: externalIsOpen, onClose }) {
         }])
       }
     } catch (error) {
-      try {
-        const fallbackResponse = await fetch(`${API_URL}/api/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: input })
-        })
-        const fallbackData = await fallbackResponse.json()
-        setMessages(prev => [...prev, { 
-          id: Date.now() + 1, 
-          type: 'bot', 
-          text: fallbackData.response 
-        }])
-      } catch {
-        setMessages(prev => [...prev, { 
-          id: Date.now() + 1, 
-          type: 'bot', 
-          text: 'Sorry, I encountered an error. Please try again.' 
-        }])
-      }
+      setMessages(prev => [...prev, { 
+        id: Date.now() + 1, 
+        type: 'bot', 
+        text: 'I can help you with maternal health questions about blood pressure, blood sugar, risk levels, pregnancy symptoms, and more! Just type your question below.' 
+      }])
     } finally {
       setLoading(false)
     }
