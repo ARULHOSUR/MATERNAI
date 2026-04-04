@@ -123,7 +123,17 @@ const API_URL = "https://maternai-production.up.railway.app";
           heart_rate: formData.heart_rate
         })
       })
+      
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`)
+      }
+      
       const data = await response.json()
+      
+      if (data.error) {
+        throw new Error(data.error)
+      }
+      
       setResult(data)
       setShowResult(true)
     } catch (error) {

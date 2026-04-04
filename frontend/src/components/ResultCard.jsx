@@ -24,7 +24,20 @@ const riskConfig = {
 }
 
 export default function ResultCard({ result }) {
-  const config = riskConfig[result.risk]
+  if (!result || !result.risk) {
+    return (
+      <div className="glass-card rounded-3xl p-8 text-center">
+        <p className="text-gray-400">No prediction result available.</p>
+      </div>
+    )
+  }
+  
+  const config = riskConfig[result.risk] || {
+    color: '#10b981',
+    gradient: 'from-green-500 to-emerald-600',
+    icon: Shield,
+    bgGradient: 'from-green-500/20 to-emerald-500/10'
+  }
   const Icon = config.icon
   
   const pieData = [
