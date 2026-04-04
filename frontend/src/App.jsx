@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Sidebar from './components/Sidebar'
 import Dashboard from './components/Dashboard'
@@ -7,16 +7,15 @@ import Reports from './components/Reports'
 import Alerts from './components/Alerts'
 import Particles from './components/Particles'
 import ChatAssistant from './components/ChatAssistant'
-import { MapPin, Phone, X, Cross } from 'lucide-react'
+import { MapPin, Phone, X, Cross, Navigation } from 'lucide-react'
 
 const API_URL = "https://maternai-production.up.railway.app";
 
-const indianHospitals = [
-  { name: 'Government Mohan Kumaramangalam Medical College', distance: '2.3 km', address: 'Steel Road, Salem, Tamil Nadu', phone: '+91 427 231 500', available: true },
-  { name: 'Vijay Marie Hospital', distance: '4.1 km', address: 'Cherry Road, Near Clock Tower, Salem', phone: '+91 427 231 200', available: true },
-  { name: 'Smt. Kannamal Memorial Hospital', distance: '6.8 km', address: 'Fort Main Road, Salem', phone: '+91 427 233 100', available: true },
-  { name: 'Manipal Hospital', distance: '8.2 km', address: 'Bengaluru Highway, Salem', phone: '+91 427 244 500', available: true },
-  { name: 'Ashoka Hospital', distance: '12.5 km', address: 'OMR Road, Chengam', phone: '+91 434 222 100', available: false },
+const defaultHospitals = [
+  { name: 'Government Mohan Kumaramangalam Medical College', address: 'Steel Road, Salem, Tamil Nadu', phone: '+91 427 231 500', available: true },
+  { name: 'Vijay Marie Hospital', address: 'Cherry Road, Near Clock Tower, Salem', phone: '+91 427 231 200', available: true },
+  { name: 'Smt. Kannamal Memorial Hospital', address: 'Fort Main Road, Salem', phone: '+91 427 233 100', available: true },
+  { name: 'Manipal Hospital', address: 'Bengaluru Highway, Salem', phone: '+91 427 244 500', available: true },
 ]
 
 function App() {
@@ -25,6 +24,95 @@ function App() {
   const [showAlert, setShowAlert] = useState(false)
   const [showHospitals, setShowHospitals] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
+  const [userLocation, setUserLocation] = useState(null)
+  const [nearbyHospitals, setNearbyHospitals] = useState([])
+  const [locationLoading, setLocationLoading] = useState(false)
+  const hospitalsRef = useRef([])
+
+  const getUserLocation = () => {
+    setLocationLoading(true)
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const loc = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          }
+          setUserLocation(loc)
+          searchNearbyHospitals(loc)
+        },
+        (error) => {
+          console.log("Geolocation error:", error)
+          setNearbyHospitals(defaultHospitals.map(h => ({ ...h, distance: 'N/A' })))
+          setLocationLoading(false)
+        }
+      )
+    } else {
+      setNearbyHospitals(defaultHospitals.map(h => ({ ...h, distance: 'N/A' })))
+      setLocationLoading(false)
+    }
+  }
+
+  const searchNearbyHospitals = async (location) => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=hospital&limit=5&lat=${location.lat}&lon=${location.lng}`
+      )
+      const data = await response.json()
+      
+      if (data && data.length > 0) {
+        const hospitalsWithDistance = data.map(h => {
+          const dist = calculateDistance(
+            location.lat, location.lng,
+            parseFloat(h.lat), parseFloat(h.lon)
+          )
+          return {
+            name: h.display_name.split(',')[0],
+            address: h.display_name,
+            distance: dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)}km`,
+            lat: h.lat,
+            lon: h.lon,
+            available: true
+          }
+        }).sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance))
+        
+        hospitalsRef.current = hospitalsWithDistance
+        setNearbyHospitals(hospitalsWithDistance)
+      } else {
+        setNearbyHospitals(defaultHospitals.map(h => ({ ...h, distance: 'N/A' })))
+      }
+    } catch (error) {
+      console.error("Search error:", error)
+      setNearbyHospitals(defaultHospitals.map(h => ({ ...h, distance: 'N/A' })))
+    }
+    setLocationLoading(false)
+  }
+
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371
+    const dLat = (lat2 - lat1) * Math.PI / 180
+    const dLon = (lon2 - lon1) * Math.PI / 180
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+    return R * c
+  }
+
+  const handleFindHospitals = () => {
+    setShowHospitals(true)
+    getUserLocation()
+  }
+
+  const openInGoogleMaps = (hospital) => {
+    if (userLocation) {
+      const url = `https://www.google.com/maps/dir/${userLocation.lat},${userLocation.lng}/${hospital.lat},${hospital.lon}`
+      window.open(url, '_blank')
+    } else {
+      const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(hospital.name + ' ' + hospital.address)}`
+      window.open(url, '_blank')
+    }
+  }
 
   const renderPage = () => {
     switch (activePage) {
@@ -103,7 +191,7 @@ function App() {
               </p>
               <div className="flex gap-4 justify-center">
                 <motion.button 
-                  onClick={() => setShowHospitals(true)}
+                  onClick={handleFindHospitals}
                   whileHover={{ scale: 1.05, rotateX: 5 }}
                   whileTap={{ scale: 0.95 }}
                   className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 rounded-xl font-semibold transition-all flex items-center gap-2 neon-pink"
@@ -144,7 +232,7 @@ function App() {
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold flex items-center gap-2">
                   <MapPin className="w-6 h-6 text-red-400" />
-                  Nearby Hospitals (Salem, TN)
+                  Nearby Hospitals
                 </h2>
                 <button 
                   onClick={() => setShowHospitals(false)}
@@ -154,10 +242,20 @@ function App() {
                 </button>
               </div>
               
-              <p className="text-gray-400 mb-4">Based on your location, here are nearby healthcare facilities:</p>
+              <p className="text-gray-400 mb-4">
+                {userLocation 
+                  ? `Found hospitals near your location (${userLocation.lat.toFixed(2)}, ${userLocation.lng.toFixed(2)})`
+                  : 'Locating hospitals near you...'}
+              </p>
               
+              {locationLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+                  <p className="text-gray-400">Finding nearby hospitals...</p>
+                </div>
+              ) : (
               <div className="space-y-4">
-                {indianHospitals.map((hospital, index) => (
+                {nearbyHospitals.map((hospital, index) => (
                   <motion.div
                     key={hospital.name}
                     initial={{ opacity: 0, y: 20, rotateX: -10 }}
@@ -187,26 +285,26 @@ function App() {
                       </div>
                     </div>
                     <div className="flex items-center justify-between mt-3">
-                      <p className="text-sm text-gray-400 flex items-center gap-1">
-                        <Phone className="w-4 h-4" />
-                        {hospital.phone}
-                      </p>
-                      {hospital.available && (
-                        <motion.a
-                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(hospital.name + ' ' + hospital.address)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          whileHover={{ scale: 1.05, rotateX: 5 }}
-                          whileTap={{ scale: 0.95 }}
-                          className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 rounded-lg text-sm font-medium text-white transition-all neon-glow"
-                        >
-                          Get Directions
-                        </motion.a>
+                      {hospital.phone && (
+                        <p className="text-sm text-gray-400 flex items-center gap-1">
+                          <Phone className="w-4 h-4" />
+                          {hospital.phone}
+                        </p>
                       )}
+                      <motion.button
+                        onClick={() => openInGoogleMaps(hospital)}
+                        whileHover={{ scale: 1.05, rotateX: 5 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 rounded-lg text-sm font-medium text-white transition-all neon-glow flex items-center gap-1"
+                      >
+                        <Navigation className="w-4 h-4" />
+                        Get Directions
+                      </motion.button>
                     </div>
                   </motion.div>
                 ))}
               </div>
+              )}
             </motion.div>
           </motion.div>
         )}
