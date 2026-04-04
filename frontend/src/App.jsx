@@ -27,10 +27,23 @@ function App() {
   const [userLocation, setUserLocation] = useState(null)
   const [nearbyHospitals, setNearbyHospitals] = useState([])
   const [locationLoading, setLocationLoading] = useState(false)
-  const hospitalsRef = useRef([])
 
-  const getUserLocation = () => {
+  const openHospitalsSearch = () => {
+    const url = `https://www.google.com/maps/search/hospitals+near+me/`
+    window.open(url, '_blank')
+  }
+
+  const openInGoogleMaps = (hospital) => {
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(hospital.name)}`
+    window.open(url, '_blank')
+  }
+
+  const handleFindHospitals = () => {
+    setShowHospitals(true)
+    setNearbyHospitals([])
+    setUserLocation(null)
     setLocationLoading(true)
+    
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -43,13 +56,13 @@ function App() {
         },
         (error) => {
           console.log("Geolocation error:", error)
-          setNearbyHospitals(defaultHospitals.map(h => ({ ...h, distance: 'N/A' })))
           setLocationLoading(false)
+          openHospitalsSearch()
         }
       )
     } else {
-      setNearbyHospitals(defaultHospitals.map(h => ({ ...h, distance: 'N/A' })))
       setLocationLoading(false)
+      openHospitalsSearch()
     }
   }
 
@@ -76,14 +89,13 @@ function App() {
           }
         }).sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance))
         
-        hospitalsRef.current = hospitalsWithDistance
         setNearbyHospitals(hospitalsWithDistance)
       } else {
-        setNearbyHospitals(defaultHospitals.map(h => ({ ...h, distance: 'N/A' })))
+        openHospitalsSearch()
       }
     } catch (error) {
       console.error("Search error:", error)
-      setNearbyHospitals(defaultHospitals.map(h => ({ ...h, distance: 'N/A' })))
+      openHospitalsSearch()
     }
     setLocationLoading(false)
   }
@@ -99,10 +111,9 @@ function App() {
     return R * c
   }
 
-  const handleFindHospitals = () => {
-    setShowHospitals(true)
-    getUserLocation()
-  }
+  const defaultHospitals = [
+    { name: 'Search in Google Maps', address: 'Click to find hospitals near you', phone: '', action: openHospitalsSearch, isSearchButton: true },
+  ]
 
   const openInGoogleMaps = (hospital) => {
     if (userLocation) {
@@ -243,9 +254,11 @@ function App() {
               </div>
               
               <p className="text-gray-400 mb-4">
-                {userLocation 
-                  ? `Found hospitals near your location (${userLocation.lat.toFixed(2)}, ${userLocation.lng.toFixed(2)})`
-                  : 'Locating hospitals near you...'}
+                {locationLoading 
+                  ? 'Locating hospitals near you...'
+                  : userLocation 
+                    ? 'Searching for hospitals near your location...'
+                    : 'Click below to search for hospitals near you.'}
               </p>
               
               {locationLoading ? (
@@ -255,60 +268,73 @@ function App() {
                 </div>
               ) : (
               <div className="space-y-4">
-                {nearbyHospitals.map((hospital, index) => (
-                  <motion.div
-                    key={hospital.name}
-                    initial={{ opacity: 0, y: 20, rotateX: -10 }}
-                    animate={{ opacity: 1, y: 0, rotateX: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className={`p-5 rounded-xl ${hospital.available ? 'bg-white/5' : 'bg-white/5 opacity-50'}`}
-                    style={{ boxShadow: '0 4px 25px rgba(0, 0, 0, 0.3)' }}
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center neon-pink">
-                          <Cross className="w-6 h-6 text-white" />
+                {nearbyHospitals.length > 0 ? (
+                  nearbyHospitals.map((hospital, index) => (
+                    <motion.div
+                      key={hospital.name}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="p-5 rounded-xl bg-white/5"
+                      style={{ boxShadow: '0 4px 25px rgba(0, 0, 0, 0.3)' }}
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center">
+                            <Cross className="w-6 h-6 text-white" />
+                          </div>
+                          <div>
+                            <h4 className="font-semibold">{hospital.name}</h4>
+                            <p className="text-xs text-gray-400">{hospital.address}</p>
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="font-semibold">{hospital.name}</h4>
-                          <p className="text-xs text-gray-400 flex items-center gap-1">
-                            <MapPin className="w-3 h-3" />
-                            {hospital.address}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className={`text-sm ${hospital.available ? 'text-green-400' : 'text-gray-400'}`}>
-                          {hospital.available ? 'Open' : 'Busy'}
-                        </span>
                         <p className="text-sm text-cyan-400">{hospital.distance}</p>
                       </div>
-                    </div>
-                    <div className="flex items-center justify-between mt-3">
-                      {hospital.phone && (
-                        <p className="text-sm text-gray-400 flex items-center gap-1">
-                          <Phone className="w-4 h-4" />
-                          {hospital.phone}
-                        </p>
-                      )}
                       <motion.button
                         onClick={() => openInGoogleMaps(hospital)}
-                        whileHover={{ scale: 1.05, rotateX: 5 }}
+                        whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 rounded-lg text-sm font-medium text-white transition-all neon-glow flex items-center gap-1"
+                        className="w-full py-2 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-1"
                       >
                         <Navigation className="w-4 h-4" />
                         Get Directions
                       </motion.button>
+                    </motion.div>
+                  ))
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-5 rounded-xl bg-white/5 cursor-pointer hover:bg-white/10"
+                    style={{ boxShadow: '0 4px 25px rgba(0, 0, 0, 0.3)' }}
+                    onClick={openHospitalsSearch}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center">
+                          <MapPin className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold">Search in Google Maps</h4>
+                          <p className="text-xs text-gray-400">Find hospitals near you</p>
+                        </div>
+                      </div>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-lg text-sm font-medium text-white"
+                      >
+                        Search
+                      </motion.button>
                     </div>
                   </motion.div>
-                ))}
+                )}
               </div>
               )}
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>>
 
       <ChatAssistant isOpen={chatOpen} onClose={() => setChatOpen(false)} />
     </div>
