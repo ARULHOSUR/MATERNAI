@@ -31,51 +31,88 @@ function App() {
     window.open(url, '_blank')
   }
 
-  const handleFindHospitals = () => {
+  const handleFindHospitals = async () => {
     setShowHospitals(true)
     setNearbyHospitals([])
     setUserLocation(null)
     setLocationLoading(true)
     
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const loc = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          }
-          setUserLocation(loc)
-          openGoogleMapsWithLocation(loc)
-        },
-        (error) => {
-          console.log("Geolocation error:", error)
-          setLocationLoading(false)
-          openHospitalsSearch()
-        }
-      )
-    } else {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser. Searching general hospitals...")
+      window.open('https://www.google.com/maps/search/hospitals+near+me/', '_blank')
       setLocationLoading(false)
-      openHospitalsSearch()
+      return
     }
+    
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const loc = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        }
+        setUserLocation(loc)
+        
+        try {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/search?format=json&q=hospital&limit=8&lat=${loc.lat}&lon=${loc.lng}`
+          )
+          const data = await response.json()
+          
+          if (data && data.length > 0) {
+            const hospitalsWithDistance = data.map(h => {
+              const dist = calculateDistance(
+                loc.lat, loc.lng,
+                parseFloat(h.lat), parseFloat(h.lon)
+              )
+              return {
+                name: h.display_name.split(',')[0],
+                address: h.display_name,
+                distance: dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)}km`,
+                lat: h.lat,
+                lon: h.lon
+              }
+            }).sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance))
+            
+            setNearbyHospitals(hospitalsWithDistance)
+          } else {
+            openGoogleMapsWithLocation(loc)
+          }
+        } catch (error) {
+          console.error("Search error:", error)
+          openGoogleMapsWithLocation(loc)
+        }
+        setLocationLoading(false)
+      },
+      (error) => {
+        console.log("Geolocation error:", error)
+        setLocationLoading(false)
+        window.open('https://www.google.com/maps/search/hospitals+near+me/', '_blank')
+      }
+    )
+  }
+
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371
+    const dLat = (lat2 - lat1) * Math.PI / 180
+    const dLon = (lon2 - lon1) * Math.PI / 180
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+    return R * c
   }
 
   const openGoogleMapsWithLocation = (location) => {
     const url = `https://www.google.com/maps/search/hospitals/@${location.lat},${location.lng},14z`
     window.open(url, '_blank')
-    setLocationLoading(false)
   }
 
-  const openHospitalsSearch = () => {
-    const url = `https://www.google.com/maps/search/hospitals+near+me/`
-    window.open(url, '_blank')
-  }
-
-  const openInGoogleMaps = (hospital) => {
+  const openHospitalDirections = (hospital) => {
     if (userLocation) {
       const url = `https://www.google.com/maps/dir/${userLocation.lat},${userLocation.lng}/${hospital.lat},${hospital.lon}`
       window.open(url, '_blank')
     } else {
-      const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(hospital.name + ' ' + hospital.address)}`
+      const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(hospital.address)}`
       window.open(url, '_blank')
     }
   }
@@ -210,44 +247,74 @@ function App() {
               
               <p className="text-gray-400 mb-4">
                 {locationLoading 
-                  ? 'Getting your location...'
-                  : 'Click the button below to find hospitals near you using Google Maps.'}
+                  ? 'Getting your location and finding hospitals...' 
+                  : userLocation 
+                    ? `Found ${nearbyHospitals.length} hospitals near you` 
+                    : 'Click the button below to find hospitals near you'}
               </p>
               
               {locationLoading ? (
                 <div className="text-center py-8">
                   <div className="animate-spin w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-                  <p className="text-gray-400">Getting location...</p>
+                  <p className="text-gray-400">Finding nearby hospitals...</p>
                 </div>
               ) : (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="p-6 rounded-xl bg-white/5"
-                  style={{ boxShadow: '0 4px 25px rgba(0, 0, 0, 0.3)' }}
-                >
-                  <div className="text-center">
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center mx-auto mb-4">
-                      <MapPin className="w-8 h-8 text-white" />
-                    </div>
-                    <h4 className="font-semibold text-lg mb-2">Find Nearby Hospitals</h4>
-                    <p className="text-gray-400 text-sm mb-4">Search for hospitals and medical facilities near your location using Google Maps</p>
-                    <motion.button
-                      onClick={handleFindHospitals}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-xl font-semibold text-white flex items-center gap-2 mx-auto"
+              <div className="space-y-4">
+                {nearbyHospitals.length > 0 ? (
+                  nearbyHospitals.map((hospital, index) => (
+                    <motion.div
+                      key={hospital.name + index}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      className="p-4 rounded-xl bg-white/5"
+                      style={{ boxShadow: '0 4px 25px rgba(0, 0, 0, 0.3)' }}
                     >
-                      <MapPin className="w-5 h-5" />
-                      Search Hospitals
-                    </motion.button>
-                  </div>
-                </motion.div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 flex-1">
+                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center flex-shrink-0">
+                            <MapPin className="w-5 h-5 text-white" />
+                          </div>
+                          <div className="min-w-0">
+                            <h4 className="font-semibold text-sm truncate">{hospital.name}</h4>
+                            <p className="text-xs text-gray-400 truncate">{hospital.address}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-cyan-400 whitespace-nowrap">{hospital.distance}</span>
+                          <button
+                            onClick={() => openHospitalDirections(hospital)}
+                            className="px-3 py-1.5 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-lg text-xs font-medium text-white"
+                          >
+                            Directions
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-6 rounded-xl bg-white/5"
+                    style={{ boxShadow: '0 4px 25px rgba(0, 0, 0, 0.3)' }}
+                  >
+                    <div className="text-center">
+                      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center mx-auto mb-3">
+                        <MapPin className="w-7 h-7 text-white" />
+                      </div>
+                      <p className="text-gray-400 text-sm mb-4">No hospitals found nearby. Click to search in Google Maps.</p>
+                      <button
+                        onClick={handleFindHospitals}
+                        className="px-5 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-lg text-sm font-medium text-white"
+                      >
+                        Search in Google Maps
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </div>
               )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>>>
 
       <ChatAssistant isOpen={chatOpen} onClose={() => setChatOpen(false)} />
     </div>
