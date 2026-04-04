@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Send, Bot, User } from 'lucide-react'
 
+const API_URL = "https://maternai-production.up.railway.app";
+
 export default function ChatAssistant({ isOpen: externalIsOpen, onClose }) {
   const [messages, setMessages] = useState([
     { id: 1, type: 'bot', text: 'Hello! I am your AI Maternal Health Assistant. How can I help you today?' }
@@ -50,7 +52,7 @@ export default function ChatAssistant({ isOpen: externalIsOpen, onClose }) {
     setLoading(true)
     
     try {
-      const response = await fetch('/api/chat/advanced', {
+      const response = await fetch(`${API_URL}/api/chat/advanced`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: input })
@@ -58,7 +60,7 @@ export default function ChatAssistant({ isOpen: externalIsOpen, onClose }) {
       const data = await response.json()
       
       if (data.error) {
-        const fallbackResponse = await fetch('/api/chat', {
+        const fallbackResponse = await fetch(`${API_URL}/api/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: input })
@@ -78,7 +80,7 @@ export default function ChatAssistant({ isOpen: externalIsOpen, onClose }) {
       }
     } catch (error) {
       try {
-        const fallbackResponse = await fetch('/api/chat', {
+        const fallbackResponse = await fetch(`${API_URL}/api/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: input })

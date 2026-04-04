@@ -16,6 +16,8 @@ import { useDropzone } from 'react-dropzone'
 import SHAPChart from './SHAPChart'
 import ResultCard from './ResultCard'
 
+const API_URL = "https://maternai-production.up.railway.app";
+
 const symptoms = [
   { id: 'headache', label: 'Severe Headache', icon: '🤕' },
   { id: 'vision', label: 'Vision Changes', icon: '👁️' },
@@ -56,7 +58,7 @@ export default function Predictor({ result, setResult, setShowAlert }) {
       formDataFile.append('file', file)
       
       try {
-        const response = await fetch('/api/ocr', {
+        const response = await fetch(`${API_URL}/api/ocr`, {
           method: 'POST',
           body: formDataFile
         })
@@ -100,12 +102,14 @@ export default function Predictor({ result, setResult, setShowAlert }) {
     }))
   }
 
+const API_URL = "https://maternai-production.up.railway.app";
+
   const handlePredict = async () => {
     setLoading(true)
     setShowResult(false)
     
     try {
-      const response = await fetch('/api/predict', {
+      const response = await fetch(`${API_URL}/api/predict`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -17,6 +17,8 @@ import {
 } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar, Cell } from 'recharts'
 
+const API_URL = "https://maternai-production.up.railway.app";
+
 const dos = [
   { icon: CheckCircle, text: 'Attend regular prenatal check-ups', color: '#10b981' },
   { icon: CheckCircle, text: 'Maintain a balanced, nutritious diet', color: '#10b981' },
@@ -52,7 +54,7 @@ export default function Dashboard({ setActivePage }) {
     try {
       setLoading(true)
       
-      const response = await fetch('/api/dashboard', {
+      const response = await fetch(`${API_URL}/api/dashboard`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' }
       })
