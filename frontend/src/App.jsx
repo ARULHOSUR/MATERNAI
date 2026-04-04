@@ -9,7 +9,7 @@ import Particles from './components/Particles'
 import ChatAssistant from './components/ChatAssistant'
 import { MapPin, Phone, X, Cross } from 'lucide-react'
 
-const API_URL = "";
+const API_URL = "https://maternai-production.up.railway.app";
 
 const indianHospitals = [
   { name: 'Government Mohan Kumaramangalam Medical College', distance: '2.3 km', address: 'Steel Road, Salem, Tamil Nadu', phone: '+91 427 231 500', available: true },
