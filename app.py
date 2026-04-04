@@ -225,52 +225,94 @@ def predict():
         if not data:
             return jsonify({'error': 'No data provided'}), 400
         
+        age = float(data.get('age', 25))
+        systolic_bp = float(data.get('systolic_bp', 120))
+        diastolic_bp = float(data.get('diastolic_bp', 80))
+        blood_sugar = float(data.get('blood_sugar', 7))
+        body_temp = float(data.get('body_temp', 98.6))
+        heart_rate = float(data.get('heart_rate', 75))
+        
         features = {
-            'age': float(data.get('age', 25)),
-            'systolic_bp': float(data.get('systolic_bp', 120)),
-            'diastolic_bp': float(data.get('diastolic_bp', 80)),
-            'blood_sugar': float(data.get('blood_sugar', 7)),
-            'body_temp': float(data.get('body_temp', 98.6)),
-            'heart_rate': float(data.get('heart_rate', 75))
+            'age': age,
+            'systolic_bp': systolic_bp,
+            'diastolic_bp': diastolic_bp,
+            'blood_sugar': blood_sugar,
+            'body_temp': body_temp,
+            'heart_rate': heart_rate
         }
         
-        input_df = pd.DataFrame([features])
+        risk_score = 0
+        risk_factors = []
         
-        risk_level = 'Low Risk'
-        confidence = 0.85
-        probabilities = [0.85, 0.10, 0.05]
+        if systolic_bp >= 160:
+            risk_score += 30
+            risk_factors.append({'feature': 'systolic_bp', 'label': 'Systolic BP', 'impact': 0.30, 'explanation': 'Very high blood pressure (160+) indicates severe risk'})
+        elif systolic_bp >= 140:
+            risk_score += 20
+            risk_factors.append({'feature': 'systolic_bp', 'label': 'Systolic BP', 'impact': 0.20, 'explanation': 'High blood pressure (140+) indicates elevated risk'})
+        elif systolic_bp >= 130:
+            risk_score += 10
+            
+        if diastolic_bp >= 110:
+            risk_score += 25
+            risk_factors.append({'feature': 'diastolic_bp', 'label': 'Diastolic BP', 'impact': 0.25, 'explanation': 'Very high diastolic pressure indicates severe risk'})
+        elif diastolic_bp >= 100:
+            risk_score += 15
+            risk_factors.append({'feature': 'diastolic_bp', 'label': 'Diastolic BP', 'impact': 0.15, 'explanation': 'High diastolic pressure indicates elevated risk'})
+            
+        if blood_sugar >= 200:
+            risk_score += 25
+            risk_factors.append({'feature': 'blood_sugar', 'label': 'Blood Sugar', 'impact': 0.25, 'explanation': 'Very high blood sugar (200+) indicates severe gestational diabetes risk'})
+        elif blood_sugar >= 140:
+            risk_score += 15
+            risk_factors.append({'feature': 'blood_sugar', 'label': 'Blood Sugar', 'impact': 0.15, 'explanation': 'Elevated blood sugar (140+) indicates gestational diabetes risk'})
+        elif blood_sugar >= 100:
+            risk_score += 5
+            
+        if age >= 40:
+            risk_score += 15
+            risk_factors.append({'feature': 'age', 'label': 'Age', 'impact': 0.15, 'explanation': 'Advanced maternal age (40+) increases pregnancy risks'})
+        elif age >= 35:
+            risk_score += 10
+            
+        if body_temp >= 102:
+            risk_score += 20
+            risk_factors.append({'feature': 'body_temp', 'label': 'Body Temperature', 'impact': 0.20, 'explanation': 'High fever (102+) may indicate serious infection'})
+        elif body_temp >= 100:
+            risk_score += 10
+            
+        if heart_rate >= 120:
+            risk_score += 10
+        elif heart_rate < 60:
+            risk_score += 5
+            
+        if risk_score >= 50:
+            risk_level = 'High Risk'
+            confidence = min(0.95, risk_score / 100)
+            probabilities = [0.05, 0.15, 0.80]
+        elif risk_score >= 25:
+            risk_level = 'Medium Risk'
+            confidence = min(0.90, risk_score / 50)
+            probabilities = [0.15, 0.70, 0.15]
+        else:
+            risk_level = 'Low Risk'
+            confidence = min(0.95, 1 - (risk_score / 50))
+            probabilities = [0.80, 0.15, 0.05]
         
-        if model is not None:
-            try:
-                prediction = model.predict(input_df)
-                probabilities = model.predict_proba(input_df)[0]
-                pred_class = int(prediction.item())
-                risk_labels = ['Low Risk', 'Medium Risk', 'High Risk']
-                risk_level = risk_labels[pred_class]
-                confidence = float(probabilities[pred_class])
-            except Exception as e:
-                print(f"Model prediction error: {e}")
-        
-        main_factors = [
-            {'feature': 'systolic_bp', 'label': 'Systolic BP', 'impact': 0.15, 'explanation': 'Blood pressure is a key factor in maternal risk assessment'},
-            {'feature': 'age', 'label': 'Age', 'impact': 0.10, 'explanation': 'Maternal age affects pregnancy risk profiles'},
-            {'feature': 'blood_sugar', 'label': 'Blood Sugar', 'impact': 0.08, 'explanation': 'Glucose levels impact pregnancy outcomes'}
-        ]
-        
-        recommendation = "Continue regular prenatal care. Maintain healthy diet and exercise routine. Monitor blood pressure and sugar levels regularly."
+        recommendation = "Continue regular prenatal care. Maintain healthy diet and exercise."
         
         if risk_level == 'High Risk':
-            recommendation = "IMMEDIATE ACTION REQUIRED: Please contact your healthcare provider immediately. Consider visiting an emergency facility if experiencing severe symptoms. Close monitoring is essential."
+            recommendation = "IMMEDIATE ACTION REQUIRED: Please contact your healthcare provider immediately. Your results indicate high risk factors. Consider visiting an emergency facility if experiencing severe symptoms."
         elif risk_level == 'Medium Risk':
             recommendation = "Increase monitoring frequency. Consider additional tests as advised by your doctor. Watch for warning signs like severe headache, vision changes, or swelling."
-
+        
         return jsonify({
             'risk': risk_level,
-            'confidence': confidence,
-            'probability_low': float(probabilities[0]),
-            'probability_medium': float(probabilities[1]),
-            'probability_high': float(probabilities[2]),
-            'main_factors': main_factors,
+            'confidence': round(confidence, 2),
+            'probability_low': probabilities[0],
+            'probability_medium': probabilities[1],
+            'probability_high': probabilities[2],
+            'main_factors': risk_factors[:3],
             'recommendation': recommendation,
             'patient_data': features
         })
