@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Sidebar from './components/Sidebar'
 import Dashboard from './components/Dashboard'
@@ -7,16 +7,9 @@ import Reports from './components/Reports'
 import Alerts from './components/Alerts'
 import Particles from './components/Particles'
 import ChatAssistant from './components/ChatAssistant'
-import { MapPin, Phone, X, Cross, Navigation } from 'lucide-react'
+import { MapPin, X } from 'lucide-react'
 
 const API_URL = "https://maternai-production.up.railway.app";
-
-const defaultHospitals = [
-  { name: 'Government Mohan Kumaramangalam Medical College', address: 'Steel Road, Salem, Tamil Nadu', phone: '+91 427 231 500', available: true },
-  { name: 'Vijay Marie Hospital', address: 'Cherry Road, Near Clock Tower, Salem', phone: '+91 427 231 200', available: true },
-  { name: 'Smt. Kannamal Memorial Hospital', address: 'Fort Main Road, Salem', phone: '+91 427 233 100', available: true },
-  { name: 'Manipal Hospital', address: 'Bengaluru Highway, Salem', phone: '+91 427 244 500', available: true },
-]
 
 function App() {
   const [activePage, setActivePage] = useState('dashboard')
@@ -52,7 +45,7 @@ function App() {
             lng: position.coords.longitude
           }
           setUserLocation(loc)
-          searchNearbyHospitals(loc)
+          openGoogleMapsWithLocation(loc)
         },
         (error) => {
           console.log("Geolocation error:", error)
@@ -66,54 +59,16 @@ function App() {
     }
   }
 
-  const searchNearbyHospitals = async (location) => {
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=hospital&limit=5&lat=${location.lat}&lon=${location.lng}`
-      )
-      const data = await response.json()
-      
-      if (data && data.length > 0) {
-        const hospitalsWithDistance = data.map(h => {
-          const dist = calculateDistance(
-            location.lat, location.lng,
-            parseFloat(h.lat), parseFloat(h.lon)
-          )
-          return {
-            name: h.display_name.split(',')[0],
-            address: h.display_name,
-            distance: dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)}km`,
-            lat: h.lat,
-            lon: h.lon,
-            available: true
-          }
-        }).sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance))
-        
-        setNearbyHospitals(hospitalsWithDistance)
-      } else {
-        openHospitalsSearch()
-      }
-    } catch (error) {
-      console.error("Search error:", error)
-      openHospitalsSearch()
-    }
+  const openGoogleMapsWithLocation = (location) => {
+    const url = `https://www.google.com/maps/search/hospitals/@${location.lat},${location.lng},14z`
+    window.open(url, '_blank')
     setLocationLoading(false)
   }
 
-  const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371
-    const dLat = (lat2 - lat1) * Math.PI / 180
-    const dLon = (lon2 - lon1) * Math.PI / 180
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon/2) * Math.sin(dLon/2)
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
-    return R * c
+  const openHospitalsSearch = () => {
+    const url = `https://www.google.com/maps/search/hospitals+near+me/`
+    window.open(url, '_blank')
   }
-
-  const defaultHospitals = [
-    { name: 'Search in Google Maps', address: 'Click to find hospitals near you', phone: '', action: openHospitalsSearch, isSearchButton: true },
-  ]
 
   const openInGoogleMaps = (hospital) => {
     if (userLocation) {
@@ -255,86 +210,44 @@ function App() {
               
               <p className="text-gray-400 mb-4">
                 {locationLoading 
-                  ? 'Locating hospitals near you...'
-                  : userLocation 
-                    ? 'Searching for hospitals near your location...'
-                    : 'Click below to search for hospitals near you.'}
+                  ? 'Getting your location...'
+                  : 'Click the button below to find hospitals near you using Google Maps.'}
               </p>
               
               {locationLoading ? (
                 <div className="text-center py-8">
                   <div className="animate-spin w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-                  <p className="text-gray-400">Finding nearby hospitals...</p>
+                  <p className="text-gray-400">Getting location...</p>
                 </div>
               ) : (
-              <div className="space-y-4">
-                {nearbyHospitals.length > 0 ? (
-                  nearbyHospitals.map((hospital, index) => (
-                    <motion.div
-                      key={hospital.name}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="p-5 rounded-xl bg-white/5"
-                      style={{ boxShadow: '0 4px 25px rgba(0, 0, 0, 0.3)' }}
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center">
-                            <Cross className="w-6 h-6 text-white" />
-                          </div>
-                          <div>
-                            <h4 className="font-semibold">{hospital.name}</h4>
-                            <p className="text-xs text-gray-400">{hospital.address}</p>
-                          </div>
-                        </div>
-                        <p className="text-sm text-cyan-400">{hospital.distance}</p>
-                      </div>
-                      <motion.button
-                        onClick={() => openInGoogleMaps(hospital)}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="w-full py-2 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-1"
-                      >
-                        <Navigation className="w-4 h-4" />
-                        Get Directions
-                      </motion.button>
-                    </motion.div>
-                  ))
-                ) : (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="p-5 rounded-xl bg-white/5 cursor-pointer hover:bg-white/10"
-                    style={{ boxShadow: '0 4px 25px rgba(0, 0, 0, 0.3)' }}
-                    onClick={openHospitalsSearch}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center">
-                          <MapPin className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold">Search in Google Maps</h4>
-                          <p className="text-xs text-gray-400">Find hospitals near you</p>
-                        </div>
-                      </div>
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-lg text-sm font-medium text-white"
-                      >
-                        Search
-                      </motion.button>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-6 rounded-xl bg-white/5"
+                  style={{ boxShadow: '0 4px 25px rgba(0, 0, 0, 0.3)' }}
+                >
+                  <div className="text-center">
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center mx-auto mb-4">
+                      <MapPin className="w-8 h-8 text-white" />
                     </div>
-                  </motion.div>
-                )}
-              </div>
+                    <h4 className="font-semibold text-lg mb-2">Find Nearby Hospitals</h4>
+                    <p className="text-gray-400 text-sm mb-4">Search for hospitals and medical facilities near your location using Google Maps</p>
+                    <motion.button
+                      onClick={handleFindHospitals}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-xl font-semibold text-white flex items-center gap-2 mx-auto"
+                    >
+                      <MapPin className="w-5 h-5" />
+                      Search Hospitals
+                    </motion.button>
+                  </div>
+                </motion.div>
               )}
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>>
+      </AnimatePresence>>>
 
       <ChatAssistant isOpen={chatOpen} onClose={() => setChatOpen(false)} />
     </div>
